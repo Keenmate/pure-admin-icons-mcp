@@ -1,8 +1,8 @@
 # @keenmate/pure-admin-icons-mcp
 
-MCP server for searching 16,000+ open-source SVG icons from [icons.pureadmin.io](https://icons.pureadmin.io).
+MCP server for searching open-source SVG icons from [icons.pureadmin.io](https://icons.pureadmin.io).
 
-Search across **FluentUI**, **Font Awesome**, **Heroicons**, **Lucide**, and **Tabler** icon sets with a single tool. Get platform identifiers for iOS, Android, React, Vue, and Svelte.
+Search across 13 icon sets — **FluentUI**, **Material Symbols**, **Phosphor**, **Tabler**, **Lucide**, **Solar**, **Font Awesome**, **Heroicons**, **Remix**, **Carbon**, **Bootstrap**, **Simple Icons**, and **MingCute** — with a single tool. Get platform identifiers for iOS, Android, React, Vue, and Svelte. Call `list_icon_sets` for the live list with counts.
 
 ## What's new in v1.0.1
 

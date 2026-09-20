@@ -53,14 +53,13 @@ or whenever you're not sure which tool or parameters to use.`,
         {
           type: "text",
           text: [
-            "icons.pureadmin.io — Icon search across 5 icon libraries",
+            "icons.pureadmin.io — Icon search across many open-source icon libraries",
             "",
             "ICON SETS:",
-            "  fluentui    — Microsoft FluentUI (5400+ icons, regular/filled/color/light, 16-48px)",
-            "  fontawesome — Font Awesome Free (2850+ icons, solid/regular/brands, scalable)",
-            "  heroicons   — Tailwind Heroicons (650 icons, outline/solid, 16/20/24px)",
-            "  lucide      — Lucide (1500+ icons, regular only, 24px, stroke-based)",
-            "  tabler      — Tabler Icons (5300+ icons, outline/filled, 24px)",
+            "  Call list_icon_sets for the full current list (FluentUI, Material Symbols,",
+            "  Phosphor, Tabler, Lucide, Solar, Font Awesome, Heroicons, Remix, Carbon,",
+            "  Bootstrap, Simple Icons, MingCute, ...) with each set's styles, sizes,",
+            "  color methods, license, and icon count.",
             "",
             "TOOLS:",
             "  search_icons      — Find icons by name. Supports filters: set, style, size, limit.",
@@ -89,7 +88,7 @@ or whenever you're not sure which tool or parameters to use.`,
 
 server.tool(
   "search_icons",
-  `Search 16,000+ icons from FluentUI, Font Awesome, Heroicons, Lucide & Tabler.
+  `Search tens of thousands of open-source SVG icons across many icon sets (FluentUI, Material Symbols, Phosphor, Tabler, Lucide, Solar, Font Awesome, Heroicons, and more).
 
 Returns a list of matching icons with names, styles, platform identifiers, and SVG URLs.
 Use format="text" for a concise listing, or format="json" for full metadata.
@@ -103,9 +102,11 @@ Tips:
   {
     query: z.string().describe("Search term (e.g., 'calendar', 'arrow', 'user')"),
     set: z
-      .enum(["fluentui", "fontawesome", "heroicons", "lucide", "tabler"])
+      .string()
       .optional()
-      .describe("Filter by icon set"),
+      .describe(
+        "Filter by icon set code (e.g. fluentui, material, phosphor, tabler, lucide, solar, mingcute). Call list_icon_sets for the full current list."
+      ),
     style: z
       .string()
       .optional()
@@ -392,9 +393,9 @@ server.resource("api-docs", "icons://docs", async (uri) => {
             "SVG:    GET /icons/{set}/{style}/{filename}.svg",
             "Health: GET /api/health",
             "",
-            "Icon sets: fluentui, fontawesome, heroicons, lucide, tabler",
-            "Styles: regular, filled, outline, solid, color, light, brands",
-            "Sizes: 16, 20, 24, 28, 32, 48 (varies by set)",
+            "Icon sets: see GET /api/icon-sets (many sets incl. fluentui, material, phosphor, tabler, lucide, solar, mingcute, ...)",
+            "Styles: outline, filled, thin, light, regular, bold, rounded, sharp, duotone, line-duotone, broken, color, brands (varies by set)",
+            "Sizes: 16, 20, 24, 28, 32, 48 (varies by set; most sets are scalable)",
           ].join("\n"),
         },
       ],

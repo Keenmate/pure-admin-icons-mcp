@@ -1,48 +1,52 @@
 ---
-description: Prepare @keenmate/pure-admin-icons-mcp for npm publish — verify registry sync, bump version, finalize CHANGELOG/README, validate, commit
+description: Prepare @keenmate/pure-admin-icons-mcp for npm publish — verify registry sync, bump version, finalize CHANGELOG/README, build, validate, commit
 argument-hint: rc|release|patch|minor|major
 ---
 
 # /publish — prepare an npm release of @keenmate/pure-admin-icons-mcp
 
-You are preparing the MCP server package for `npm publish`. **Do not run `npm publish`** — the user logs in and publishes manually.
+You are preparing this package for `npm publish`. **Do not run `npm publish`** — the user logs in and publishes manually (interactive prompt + 2FA).
 
-## Argument
+This command follows the canonical `/publish` structure defined in the BlissFramework component guidelines at
+`web-components/publish-command.md`, adapted for this **stdio MCP server** (not a web component). Sections marked
+**[canonical]** mirror that shared structure and should stay aligned with every other KeenMate package's `/publish`;
+sections marked **[per-repo]** are customized for this repo's layout, build, tests, and CHANGELOG convention.
+
+## Argument [canonical]
 
 The release type: **$ARGUMENTS**
 
 Must be one of:
 
-- `rc` — bump the rc counter, or start a new rc cycle.
-  - If `PKG_VERSION` is `X.Y.Z-rc.N`, `NEW_VERSION = X.Y.Z-rc.(N+1)`.
-  - If `PKG_VERSION` is plain `X.Y.Z`, **default to** `NEW_VERSION = X.(Y+1).0-rc.1` (next minor, rc.1) and **ask the user to confirm** before proceeding. If they want a different bump kind (patch / major) for the rc cycle, they can answer and you re-compute. Don't pick silently.
-- `release` — promote an rc to a final release. `PKG_VERSION` must be `X.Y.Z-rc.N` → `NEW_VERSION = X.Y.Z`. If `PKG_VERSION` is already a plain release, stop and ask (they probably wanted `patch`/`minor`/`major`).
-- `patch` — SemVer patch bump. Drops any `-rc.N` suffix. `1.0.1-rc.N` → `1.0.1`, `1.0.0` → `1.0.1`.
-- `minor` — SemVer minor bump. Drops `-rc.N`. Resets patch.
-- `major` — SemVer major bump. Drops `-rc.N`. Resets minor and patch.
+- `rc` — ship a release-candidate.
+  - If `CURRENT_VERSION` is `X.Y.Z-rcN`, `NEW_VERSION = X.Y.Z-rc(N+1)` (bump the rc counter — we're iterating the same rc cycle).
+  - If `CURRENT_VERSION` is a plain `X.Y.Z`, **default to** `NEW_VERSION = X.(Y+1).0-rc1` (next minor, rc1) and **ask the user to confirm** before mutating files. If they want a different base (patch/major) for the rc cycle, re-compute. Don't pick silently.
+- `release` — promote a WIP rc to a final release. `X.Y.Z-rcN` → `X.Y.Z`. If `CURRENT_VERSION` is already a plain release, stop and ask (they probably wanted `patch`/`minor`/`major`).
+- `patch` — SemVer patch bump. Drops any `-rcN` suffix. `1.0.1` → `1.0.2`.
+- `minor` — SemVer minor bump. Drops `-rcN`. Resets patch.
+- `major` — SemVer major bump. Drops `-rcN`. Resets minor and patch.
 
-If missing or invalid, stop and ask which one to use (don't guess).
+If missing or invalid, stop and ask the user which one to use (don't guess).
 
-## Repo layout
+## Repo layout [per-repo]
 
-Single npm package, published from the root:
+Single npm package, published from the repo root:
 
-- `package.json` — defines the package; `"version"` field is the source of truth
-- `CHANGELOG.md` — at the repo root (may not exist yet on first run — see bootstrap note)
-- `README.md` — at the repo root, may have 0–2 `## What's new in vX.Y.Z` blocks below the intro
-- `src/index.ts` — source (TypeScript)
-- `dist/` — built JS artefact published to npm (the `files:` array in package.json restricts the upload to this)
+- **`./package.json`** — `version` field is the source of truth. `files: ["dist"]` restricts the upload to the build output. Note the `description` field is user-facing on npmjs.com — keep it in sync with the actual set list (it currently overclaims "FluentUI, Font Awesome, Heroicons, Lucide & Tabler"; the catalog is now 13 sets).
+- **`./CHANGELOG.md`** — at the root. Keep-a-Changelog shape with an `## [Unreleased]` section at the top (may not exist on first run — see bootstrap note).
+- **`./README.md`** — at the root. Carries `## What's New in vX.Y.Z` sections near the top (one per release, the **two most recent** retained). Existing sections may use lowercase `## What's new in ...` — normalize the case to `## What's New in ...` when you next touch one.
+- **`./src/index.ts`** — TypeScript source. The whole server is this one file.
+- **`./dist/`** — gitignored. Produced by `npm run build` (`tsc`) → `dist/index.js` (the `bin` entry) + `dist/index.d.ts`. Never staged; rebuilt at publish time via `prepublishOnly`.
+- **`./LICENSE`** — **currently missing.** `package.json` declares `"license": "MIT"` but there is no LICENSE file, so npm publishes without one. Flag this in the report; ideally add an MIT LICENSE before the next publish.
 
-The package is consumed primarily via `npx -y @keenmate/pure-admin-icons-mcp` from MCP client configs, so any post-publish consumer needs to either wait for the npx cache to expire or clear it. Worth mentioning in the final report.
+The package is consumed primarily via `npx -y @keenmate/pure-admin-icons-mcp` from MCP client configs, so post-publish consumers must wait for the npx cache to expire or clear it. Mentioned again in the report.
 
-## CHANGELOG convention (Keep-a-Changelog + `[PUBLISHED]` marker)
+## CHANGELOG convention [per-repo]
 
-Two-part shape:
+This repo uses the Keep-a-Changelog shape with a `[PUBLISHED]` marker (**not** the dated-WIP-heading convention some other KeenMate packages use):
 
-- **`## [Unreleased]`** — always present at the very top of the CHANGELOG. Active work accumulates here under `### Added` / `### Changed` / `### Fixed` / `### Removed` subsections. No date, no version.
-- **`## [X.Y.Z] - YYYY-MM-DD [PUBLISHED]`** — past releases that are confirmed on npmjs.com. The `[PUBLISHED]` tag at the end of the heading is what `/publish` writes to mark a version as having actually shipped.
-
-Example:
+- **`## [Unreleased]`** — always present at the very top. Active work accumulates here under `### Added` / `### Changed` / `### Fixed` / `### Removed`. No date, no version.
+- **`## [X.Y.Z] - YYYY-MM-DD [PUBLISHED]`** — past releases confirmed on npmjs.com. The `[PUBLISHED]` tag is what `/publish` writes to mark a version as having actually shipped.
 
 ```
 ## [Unreleased]
@@ -54,161 +58,174 @@ Example:
 
 ### Added
 - ...
-
-## [1.0.0] - 2026-05-15 [PUBLISHED]
-
-### Added
-- Initial release.
 ```
 
 Publishing means:
 
-1. Renaming `## [Unreleased]` to `## [NEW_VERSION] - <today> [PUBLISHED]` (in-place — the bullet content under it carries over unchanged).
-2. Inserting a fresh empty `## [Unreleased]` block above it (with empty `### Added` / `### Changed` / `### Fixed` subsections) so the next dev cycle has somewhere to land.
+1. Renaming `## [Unreleased]` → `## [NEW_VERSION] - <today> [PUBLISHED]` (in place — bullet content carries over unchanged).
+2. Inserting a fresh empty `## [Unreleased]` block above it (empty `### Added` / `### Changed` / `### Fixed`) so the next dev cycle has somewhere to land.
 
-**Bootstrap (first ever /publish run, no CHANGELOG.md present):** create `CHANGELOG.md` with the two-block shape — an empty `## [Unreleased]` at top, then `## [PKG_VERSION] - <today> [PUBLISHED]` for the version currently in `package.json` (i.e. the one already on npm), with a single bullet like `- Initial release.` under `### Added` if you have no better information. Then continue the normal flow as if CHANGELOG had been there all along. Confirm with the user before writing if you're unsure what the baseline release content should be.
+**Bootstrap (first ever /publish run, no CHANGELOG.md):** create it with the two-block shape — an empty `## [Unreleased]` at top, then `## [CURRENT_VERSION] - <today> [PUBLISHED]` for the version already on npm, with a single `- Initial release.` bullet under `### Added` if you have nothing better. Confirm with the user before writing if unsure of the baseline content, then continue the normal flow.
 
-## Resolve versions
+## Resolve versions [canonical]
 
-- `PKG_VERSION` — read `"version"` from `package.json`.
-- `CHANGELOG_LATEST_PUBLISHED` — the topmost `## [X.Y.Z] - YYYY-MM-DD [PUBLISHED]` entry in `CHANGELOG.md` (after bootstrap if needed).
-- `NPM_LATEST` — `dist-tags.latest` field from `https://registry.npmjs.org/@keenmate/pure-admin-icons-mcp`.
-- `NEW_VERSION` — computed from the argument per the table above.
+- `CURRENT_VERSION` — `version` from `./package.json`.
+- `CHANGELOG_LATEST_PUBLISHED` — the topmost `## [X.Y.Z] - YYYY-MM-DD [PUBLISHED]` entry in `./CHANGELOG.md` (after bootstrap if needed).
+- `NPM_LATEST` — `dist-tags.latest` from `https://registry.npmjs.org/@keenmate/pure-admin-icons-mcp` (resolved in step 0).
+- `NEW_VERSION` — computed from the argument:
+
+| Argument | Logic |
+|---|---|
+| `rc` | `X.Y.Z-rcN` → `X.Y.Z-rc(N+1)`. Plain `X.Y.Z` → default `X.(Y+1).0-rc1`, **confirm first**. |
+| `release` | `X.Y.Z-rcN` → `X.Y.Z`. Otherwise stop. |
+| `patch` | Strip any `-rcN`, then bump patch. |
+| `minor` | Strip any `-rcN`, then bump minor, reset patch. |
+| `major` | Strip any `-rcN`, then bump major, reset minor and patch. |
 
 ## Steps (in order)
 
-### 0. npm registry sync check (PREREQUISITE)
+### 0. npm registry sync check (PREREQUISITE) [per-repo]
 
-Verify that what the local CHANGELOG and `package.json` say agrees with what's actually on npmjs.com. This is a guard against drift — e.g. a version that was prepared and `[PUBLISHED]`-tagged locally but never actually pushed to npm.
+Verify the local CHANGELOG and `package.json` agree with what's actually on npmjs.com — a guard against drift (e.g. a version `[PUBLISHED]`-tagged locally but never pushed to npm).
 
-- Fetch `https://registry.npmjs.org/@keenmate/pure-admin-icons-mcp`. Parse `dist-tags.latest`; that's `NPM_LATEST`.
-  - If the request 404s, this is a first-time publish — skip the comparison and proceed to step 1.
-  - If the request fails for transient reasons (network), stop and ask whether to retry or proceed without the check.
-- Find `CHANGELOG_LATEST_PUBLISHED` — the topmost `## [X.Y.Z] - YYYY-MM-DD [PUBLISHED]` in `CHANGELOG.md` (after bootstrap-handling above if applicable).
-- Compare `NPM_LATEST` and `CHANGELOG_LATEST_PUBLISHED`:
-  - **If they match**, continue.
-  - **If `CHANGELOG_LATEST_PUBLISHED` is newer than `NPM_LATEST`** (e.g. CHANGELOG claims `1.3.0 [PUBLISHED]` but npm only has `1.1.0`), CHANGELOG is overclaiming. Stop and report:
-    - List every CHANGELOG `[PUBLISHED]` version newer than `NPM_LATEST`.
-    - Ask the user whether to (a) re-publish those versions to npm before continuing, or (b) un-mark them in CHANGELOG (remove `[PUBLISHED]`, optionally merging the bullets back into `[Unreleased]`).
-    - Do not auto-fix; this is a writing decision.
-  - **If `NPM_LATEST` is newer than `CHANGELOG_LATEST_PUBLISHED`**, npm has a version not reflected locally. Stop and ask the user to manually add a `## [NPM_LATEST] - <publish-date> [PUBLISHED]` heading to CHANGELOG before rerunning.
-- Also sanity-check `PKG_VERSION` against the others. The expected state at this point is `PKG_VERSION == NPM_LATEST == CHANGELOG_LATEST_PUBLISHED` for a plain release, or `PKG_VERSION` is an rc whose base `X.Y.Z` is newer than those (when iterating rcs). If `PKG_VERSION` is at neither the published version nor a forward rc, stop and report — something was edited manually.
+- Fetch `https://registry.npmjs.org/@keenmate/pure-admin-icons-mcp` and parse `dist-tags.latest` → `NPM_LATEST`.
+  - 404 → first-time publish; skip the comparison and go to step 1.
+  - Transient/network failure → stop and ask whether to retry or proceed without the check.
+- Compare `NPM_LATEST` with `CHANGELOG_LATEST_PUBLISHED`:
+  - **Match** → continue.
+  - **CHANGELOG ahead of npm** (CHANGELOG claims a `[PUBLISHED]` version npm doesn't have) → CHANGELOG is overclaiming. Stop: list every `[PUBLISHED]` version newer than `NPM_LATEST` and ask whether to (a) publish those first, or (b) un-mark them (drop `[PUBLISHED]`, optionally merge bullets back into `[Unreleased]`). Don't auto-fix — it's a writing decision.
+  - **npm ahead of CHANGELOG** → npm has a version not reflected locally. Stop and ask the user to add a `## [NPM_LATEST] - <publish-date> [PUBLISHED]` heading before rerunning.
+- Sanity-check `CURRENT_VERSION` against the others: expected `CURRENT_VERSION == NPM_LATEST == CHANGELOG_LATEST_PUBLISHED` for a plain release, or `CURRENT_VERSION` an rc whose base is newer (when iterating rcs). If it's at neither, stop and report — something was hand-edited.
 
-### 1. Sanity checks
+### 1. Sanity checks [canonical]
 
-- Run `git status`. If the working tree has uncommitted changes **other than** `package.json`, `CHANGELOG.md`, `README.md`, and `src/**` (which you're about to touch or just changed), warn and ask before continuing.
-- Confirm the `## [Unreleased]` section has at least one bullet of substantive content under `### Added`, `### Changed`, `### Fixed`, or `### Removed`. If empty, stop — there's nothing meaningful to release.
+- Run `git status`. The repo intentionally keeps `.claude/` untracked and `dist/` gitignored — those are fine. If there are **other** uncommitted changes that aren't `package.json`, `CHANGELOG.md`, `README.md`, or `src/**`, list them and ask before continuing. (Typical case: substantive source changes belonging in this release that haven't been committed yet — confirm they're intended for this version before bumping.)
+- **Verify the new version isn't already on npm.** Run `npm view @keenmate/pure-admin-icons-mcp@<NEW_VERSION> version 2>/dev/null` — if it returns the version, that version is already published; **stop** (bumping over it fails at publish time and pollutes the commit).
+- Confirm the `## [Unreleased]` section has at least one bullet of substantive content under `### Added` / `### Changed` / `### Fixed` / `### Removed`. If empty, stop — nothing meaningful to release.
+- Confirm `./README.md` has a `## What's New in vNEW_VERSION` section. If missing, draft one from the CHANGELOG and get approval before continuing:
+  - Read the `[Unreleased]` section, distill to **3–5 scannable bullets** covering the Added/Changed themes (paraphrase — What's New is the highlight reel, not the exhaustive CHANGELOG). Pure internal refactors and Fixed-only entries don't need coverage, though a headline bug fix worth advertising does.
+  - **Canonical "What's New" format:**
+    - **Heading:** `## What's New in vNEW_VERSION` — lowercase `v`, no backticks around the version, no date.
+    - **Each bullet:** `- **<area or tool> — <one-line headline>** — <prose, 2–5 sentences>`. Bold-wrapped lead phrase, then a true em-dash (` — `, U+2014 with surrounding spaces), then prose explaining *what changed*, *why*, and *what surface is affected* (concrete tool / param / file names inline). Plain hyphens or en-dashes are wrong.
+    - **No `### ` sub-headings** inside a What's New section — a flat bullet list.
+  - Show the user the proposed draft as plain markdown. Ask whether to (a) insert as-is, (b) edit, or (c) abort so they write it themselves. Only proceed once approved; insert directly above the current top `## What's New in ...` heading. Do not silently insert — the voice is the user's call.
 
-### 2. Compute `NEW_VERSION` and confirm if needed
+### 2. Bump version (if needed) [canonical]
 
-Apply the version logic from the argument table above. The only branch that requires user confirmation **before** mutating files:
+If `NEW_VERSION` ≠ `CURRENT_VERSION`, edit `./package.json`: `"version": "CURRENT_VERSION"` → `"version": "NEW_VERSION"`. Don't touch anything else. **Do not run `npm version <bump>`** — it also creates a git tag, and tagging waits until after a successful publish (step 11).
 
-- **`rc` on a plain `X.Y.Z` package.json**: default to `X.(Y+1).0-rc.1` and ASK: _"Starting a new rc cycle. Default is `<X.(Y+1).0-rc.1>`. Confirm, or pick `patch` / `major` instead?"_ Wait for the answer; compute accordingly.
+### 3. Finalize CHANGELOG [per-repo]
 
-All other branches are deterministic — no prompt needed.
+In `./CHANGELOG.md`:
 
-### 3. Bump `package.json`
-
-If `NEW_VERSION != PKG_VERSION`, edit `package.json`:
-
-```
-"version": "PKG_VERSION"   →   "version": "NEW_VERSION"
-```
-
-Don't touch anything else in `package.json`. Don't run `npm version <bump>` — that command auto-creates a git tag, and tagging is something the user does **after** a successful `npm publish` (see step 10).
-
-### 4. Finalize CHANGELOG
-
-In `CHANGELOG.md`:
-
-- Rename `## [Unreleased]` → `## [NEW_VERSION] - YYYY-MM-DD [PUBLISHED]` (today's date — pull from system context, don't guess).
+- Rename `## [Unreleased]` → `## [NEW_VERSION] - YYYY-MM-DD [PUBLISHED]` (today's date from system context; don't guess).
 - Leave the bullet content under the renamed heading untouched.
-- Insert a fresh `## [Unreleased]` block at the very top of the changelog (above the just-renamed heading), with empty subsections:
+- Insert a fresh `## [Unreleased]` block at the very top with empty `### Added` / `### Changed` / `### Fixed` subsections.
+
+### 4. Update README "What's New" — only if version changed [canonical]
+
+In `./README.md`:
+
+- If the existing top `## What's New in vX.Y.Z` differs from `NEW_VERSION` (e.g. promoting `-rcN` → release), rename its heading to `## What's New in vNEW_VERSION` (no content rewrite — it was curated for this release). Normalize the heading case to `What's New` while you're there.
+- Count the `## What's New in vX.Y.Z` headings; if more than **two**, delete the oldest so only the two most recent remain. Don't touch publish content on the retained older one.
+
+### 5. Validate README reflects the release [canonical]
+
+Read the finalized CHANGELOG section and the matching `What's New in vNEW_VERSION`. Every **Added**/**Changed** bullet that's a user-facing feature or behavior change should have a paraphrased hit in What's New. Pure internal refactors and Fixed-only entries don't need coverage (headline bug fixes worth advertising do). Add missing bullets; if the section exceeds ~5 bullets, condense — it should be scannable.
+
+### 6. Validate CHANGELOG entries match recent work [canonical]
+
+Find the previous `[PUBLISHED]` version in CHANGELOG and locate its release commit (subject usually starts `v<previous-version>`). Run `git log --oneline <previous-publish-commit>..HEAD` to list commits since (skip this if you bootstrapped CHANGELOG this run). Also check `git status`/`git diff` for uncommitted source work.
+
+For every substantive commit or change, verify the section now under the renamed heading mentions it. If something significant is missing, **stop and ask** — don't invent entries. Pure example/doc tweaks and trivial typo fixes don't need entries.
+
+### 7. Run tests [per-repo]
+
+This repo has **no automated test suite** yet — the gate is a clean typecheck plus a smoke check that the server actually starts:
+
+- The `npm run build` (`tsc`) in step 8 doubles as the typecheck gate — any TS error stops the release there.
+- Smoke check: spawn the built server and confirm it comes up over stdio without crashing, e.g. send an MCP `initialize` + `tools/list` request to `node dist/index.js` and confirm the five tools (`get_usage_guide`, `search_icons`, `get_icon_detail`, `get_icon_svg`, `list_icon_sets`) are advertised. If you can't run an interactive smoke, at minimum `node -e "import('./dist/index.js')"` must not throw.
+
+If the smoke check fails, **stop and report** — don't proceed to commit. (When a real test suite lands, wire it in here as the primary gate.)
+
+### 8. Build the package [per-repo]
+
+Run `npm run build` (`tsc`). Then smoke-check the artifacts:
+
+- `dist/index.js` exists and is non-empty, and starts with the `#!/usr/bin/env node` shebang (required for the `bin` entry to be executable via `npx`).
+- `dist/index.d.ts` exists.
+
+If the build errors, stop and report.
+
+### 9. Verify the package contents [per-repo]
+
+Run `npm pack --dry-run` and confirm the file list includes only:
+
+- `dist/` (built JS + `.d.ts`)
+- `package.json`
+- `README.md`
+- `LICENSE` — **currently absent** (see Repo layout). npm will warn "no license file"; note it in the report and add an MIT LICENSE before publishing if possible.
+
+If anything private leaked in (`src/`, `tsconfig.json`, `.claude/`, `node_modules/`, `*.ts` sources), stop and report — the `files` array in `package.json` controls this and the leak needs fixing before publish.
+
+### 10. Commit [canonical]
+
+Stage: `./package.json`, `./CHANGELOG.md`, `./README.md`. **Do not stage `dist/`** — it's gitignored and rebuilt on publish.
+
+Commit message format:
 
 ```
-## [Unreleased]
+vNEW_VERSION — <one-line summary of the headline change>
 
-### Added
+<2–4 grouped bullets paraphrased from the CHANGELOG section — Added, Fixed,
+Changed, etc. Terse; full prose lives in the CHANGELOG.>
 
-### Changed
-
-### Fixed
+Co-Authored-By: <match the trailer in recent commits>
 ```
 
-### 5. Refresh README "What's new"
+Match whatever `Co-Authored-By` convention shows in `git log -5` — don't introduce or strip one against local style.
 
-In `README.md`:
-
-- Find the existing `## What's new in vX.Y.Z` blocks just below the intro/badges. There should be 0–2 of them. If 0 (first run), no prior block exists — that's fine.
-- Add a new `## What's new in vNEW_VERSION` section at the top of that block (just before the most recent existing one). Place it above the first `## Tools` / `## Quick Start` / equivalent existing section, but below the package name and intro paragraph.
-- Populate it with **3–5 concise bullets** summarising the most user-facing changes from the just-finalised CHANGELOG section. Prioritise: **Breaking** > **Added** > **Changed** > **Fixed**. Pick highlights, not everything.
-- After adding the new section, **delete older ones so only the two most recent remain** (the new one plus the one before it). Don't accumulate.
-- If there were 0 prior blocks, that's fine — the new one becomes the only block.
-- Don't touch publish dates on prior blocks.
-
-### 6. Validate README reflects CHANGELOG
-
-Read both the finalised CHANGELOG section and the new README "What's new" block. Every **Breaking**, **Added**, or **Changed** CHANGELOG bullet that represents a user-facing feature or behaviour change should have a corresponding hit in the README block (paraphrased, not verbatim). Pure internal refactors and Fixed-only entries don't need coverage.
-
-If a significant CHANGELOG entry isn't reflected, add a bullet for it. If you end up with more than ~5 bullets after this pass, condense — the section should be scannable.
-
-### 7. Validate CHANGELOG matches recent work
-
-Run `git log --oneline` from the previous published version's commit (find the previous `## [X.Y.Z] - YYYY-MM-DD [PUBLISHED]` heading in `CHANGELOG.md` to anchor the range — if you bootstrapped CHANGELOG in this run, skip this step). Also `git diff` for uncommitted work.
-
-For every substantive commit or uncommitted change, verify the CHANGELOG section now under the renamed heading mentions it. If something significant is missing, **stop and ask the user** before finalising — don't invent entries on their behalf.
-
-### 8. Run validation
-
-In repo root, run **in parallel** where possible:
-
-- `npm run build` — must pass clean. Catches TypeScript errors and writes the `dist/` that will be published.
-- `npm pack --dry-run` — dry-run the package build; surfaces missing `files:` entries or bad `package.json` config. Read the file list and confirm only `dist/` (and metadata files npm always includes — `package.json`, `README.md`, `LICENSE` if present) are in the upload. **No `src/`, no `node_modules/`, no `.claude/`.**
-
-If either fails, stop and report. Don't try to "fix and continue" without telling the user — a build failure or unexpected files in the pack means the release isn't ready.
-
-### 9. Commit
-
-Stage `package.json`, `CHANGELOG.md`, `README.md`. Create a commit using a HEREDOC for the message:
-
-```
-vNEW_VERSION — <one-line summary of the release's headline change>
-
-<2–4 line description of what this version delivers, drawn from the CHANGELOG highlights>
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
-```
-
-Match whatever Co-Authored-By convention shows up in recent commits (`git log -5`) — don't introduce or strip one against the local style.
-
-### 10. Report
+### 11. Report [canonical]
 
 Report back with:
 
-- The new version number (`vX.Y.Z` or `vX.Y.Z-rc.N`)
+- The new version number (`vX.Y.Z` or `vX.Y.Z-rcN`)
 - The commit SHA
-- A note if the npm sync check surfaced any drift the user had to resolve before this run, or if CHANGELOG was bootstrapped in this run.
-- Exactly what the user needs to run to publish, in this order:
-  ```
-  make publish    # or: npm publish --access public
-  git tag vX.Y.Z
-  git push origin <branch> vX.Y.Z
-  ```
-- A note that npx-based MCP clients (the typical install path: `npx -y @keenmate/pure-admin-icons-mcp`) cache packages. After a successful publish, end users may need to clear their npx cache or wait for it to expire before the new version is picked up. Worth restarting the MCP host process / clearing `~/.npm/_npx` if testing locally.
-- A reminder that if `npm publish` fails:
-  - `package.json` is already at `NEW_VERSION` and CHANGELOG already says `[PUBLISHED]` — neither matches reality yet.
-  - They should either retry the publish (no file changes needed if npm transiently failed), OR revert the commit (or at minimum: revert `package.json` `"version"` back to `PKG_VERSION` and rename the CHANGELOG heading back to `## [Unreleased]`, dropping `[PUBLISHED]`) before attempting a different release.
-  - The new empty `## [Unreleased]` block above can stay either way — it becomes the next release's WIP.
+- A note if step 0 surfaced registry drift the user had to resolve, if CHANGELOG was bootstrapped, or if the LICENSE file / stale `package.json` description still needs attention.
+- The exact publish commands. **Pick the right one for the arg type:**
+  - For `rc` (pre-release):
+    ```
+    npm login          # if not already logged in
+    npm publish --tag rc
+    ```
+    The `--tag rc` is critical — without it npm assigns the `latest` dist-tag, making the pre-release the default `npx` install for everyone. With it, `latest` stays put and consumers opt in via `@rc`.
+  - For `release` / `patch` / `minor` / `major` (stable):
+    ```
+    npm login          # if not already logged in
+    npm publish --access public
+    ```
+    No `--tag` needed — it lands as `latest`.
+- After a successful publish: `git tag vNEW_VERSION` then `git push origin <branch> vNEW_VERSION`.
+- **npx cache note:** consumers install via `npx -y @keenmate/pure-admin-icons-mcp`, which caches packages. After publishing, end users may need to clear `~/.npm/_npx` or wait for expiry (and restart the MCP host process) before the new version is picked up.
+- A reminder that the CHANGELOG `[PUBLISHED]` tag and `package.json` version are already written — if `npm publish` fails, revert both (rename the heading back to `## [Unreleased]`, restore the version) before retrying, since the registry refuses to re-publish the same version. The freshly-inserted empty `## [Unreleased]` block can stay either way.
 
-## Things not to do
+## Things not to do [canonical]
 
-- **Do not run `npm publish`.** The user publishes manually (interactive prompt + 2FA on npm).
-- **Do not run `npm version <bump>`.** It edits `package.json` AND creates a git tag in one step — but tagging needs to wait until after a successful publish.
-- **Do not push to git remote.** The commit stays local until the user pushes.
-- **Do not tag.** The user tags after a successful `npm publish` — a failed publish would otherwise leave an orphan tag.
-- **Do not skip the npm sync check (step 0).** Drift between CHANGELOG and the npm registry is the single most common source of confused future publishes; catching it before the next release is the whole point.
+- **Do not run `npm publish`.** The user publishes manually after `npm login` (+ 2FA).
+- **Do not run `npm version <bump>`.** It edits `package.json` **and** creates a git tag in one step — tagging waits until after a successful publish.
+- **Do not push to git remote, and do not tag.** The commit stays local until the user pushes; tagging follows a successful publish (a failed publish would otherwise orphan the tag).
+- **Do not skip the npm sync check (step 0).** Drift between CHANGELOG and the registry is the most common source of confused future publishes.
+- **Do not create a second `## [Unreleased]`** or leave none — after finalizing there must be exactly one, empty, at the top.
+- **Do not retro-fix older CHANGELOG sections** or touch their publish dates — only finalize the section you're shipping.
+- **Do not silently insert a drafted What's New section** — present it and wait for approval; the voice is the user's call.
+- **Do not keep more than two `## What's New in vX.Y.Z` sections** in the README — step 4 trims older ones.
+- **Do not skip the build step** — without it `dist/` is stale (or absent) and the publish ships outdated or broken artifacts.
+- **Do not skip the smoke check** — with no test suite it's the only gate that catches a server that won't start.
 - **Do not invent CHANGELOG entries** to cover commits you find — ask the user if something's missing.
-- **Do not touch publish dates on prior `## [...]` headings**, even to "normalise" them.
-- **Do not exceed two `## What's new in vX.Y.Z` blocks in the README.** Delete the oldest to make room.
-- **Do not include `src/` in the published package.** The `files:` array in `package.json` should keep this scoped to `dist/`; if `npm pack --dry-run` shows otherwise, stop and fix `package.json` rather than continuing the release.
-- **Do not auto-fix npm sync drift** — adding/removing `[PUBLISHED]` tags or merging bullets back into `[Unreleased]` is a writing decision, not a mechanical one.
+- **Do not bump if there's nothing meaningful in `[Unreleased]`** — stop and explain.
+
+### Repo-specific don'ts [per-repo]
+
+- **Do not stage `dist/`** — gitignored, rebuilt on publish.
+- **Do not include `src/`, `tsconfig.json`, or `.claude/` in the published package** — `files: ["dist"]` should keep the upload scoped to `dist/`; if `npm pack --dry-run` shows otherwise, fix `package.json` rather than continuing.
+- **Do not let the stale `package.json` `description` ship silently** — if it still lists only the old five sets, flag it (or fix it) as part of the release.

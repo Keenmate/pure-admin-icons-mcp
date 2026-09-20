@@ -1,7 +1,7 @@
 {
   "name": "@keenmate/pure-admin-icons-mcp",
   "version": "1.0.1",
-  "description": "MCP server for searching 16,000+ icons from FluentUI, Font Awesome, Heroicons, Lucide & Tabler via icons.pureadmin.io",
+  "description": "MCP server for searching open-source SVG icons (FluentUI, Material Symbols, Phosphor, Tabler, Lucide, Solar, Font Awesome, and more) via icons.pureadmin.io",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -21,6 +21,9 @@
     "icons",
     "svg",
     "fluentui",
+    "material-symbols",
+    "phosphor",
+    "solar",
     "fontawesome",
     "heroicons",
     "lucide",
