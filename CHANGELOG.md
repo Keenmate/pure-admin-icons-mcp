@@ -9,7 +9,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 ### Changed
-- Docs refresh: the `search_icons` description, the `get_usage_guide` fallback text, and the API resource fallback no longer hard-code the old five-set list — they point to `list_icon_sets` / `GET /api/icon-sets` for the live catalog (now 13 sets, incl. Material, Phosphor, Remix, Carbon, Bootstrap, Simple Icons, Solar, MingCute). Updated the README set list accordingly.
+
+### Fixed
+
+## [1.0.2] - 2026-09-20 [PUBLISHED]
+
+### Added
+- MIT `LICENSE` file — the package declared `"license": "MIT"` but shipped without one.
+
+### Changed
+- Docs & metadata refresh: the `search_icons` description, the `get_usage_guide` fallback text, the API resource fallback, the README set list, and the npm `package.json` description/keywords no longer hard-code the old five-set list — they point to `list_icon_sets` / `GET /api/icon-sets` for the live catalog (now 13 sets, incl. Material, Phosphor, Remix, Carbon, Bootstrap, Simple Icons, Solar, MingCute).
 
 ### Fixed
 - `search_icons` only accepted the original five sets in its `set` filter (a Zod enum), rejecting all newer sets client-side. It's now a free-form string, so any set code — `material`, `phosphor`, `remix`, `carbon`, `bootstrap`, `simpleicons`, `solar`, `mingcute`, … — can be used as a filter.
