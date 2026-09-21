@@ -25,6 +25,7 @@ Search across 13 icon sets — **FluentUI**, **Material Symbols**, **Phosphor**,
 | `search_icons` | Search icons by name with filters for set, style, size. Returns names + SVG URLs. |
 | `get_icon_detail` | Get full metadata for an icon: all sizes, platform identifiers, color method, phrases. |
 | `get_icon_svg` | Fetch raw SVG content from a URL. |
+| `get_icons_zip` | Bundle many icons into one ZIP — raw SVGs, or rasterized PNGs at given sizes. Returns a base64 `application/zip`. |
 | `list_icon_sets` | List all icon sets with styles, sizes, color methods, and counts. |
 
 ## Quick Start

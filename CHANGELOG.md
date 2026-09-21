@@ -12,6 +12,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+## [1.1.0] - 2026-09-21
+
+### Added
+- **`get_icons_zip` tool** — bundle many icons into a single ZIP in one call. Takes a list of `{set, name, style}` triples and a `format` (`svg` for raw source SVGs, or `png` for rasterized PNGs with a `sizes` list). Calls the new `POST /api/icons/svg-zip` / `png-zip` endpoints and returns the archive as a base64 `application/zip` resource. Entries are namespaced `set/style/name[-size]`; a `manifest.json` inside lists any icons that couldn't be resolved. Server-side per-request limits apply. Registered in the `get_usage_guide` tool list.
+
 ## [1.0.2] - 2026-09-20 [PUBLISHED]
 
 ### Added

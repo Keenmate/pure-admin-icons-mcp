@@ -22,7 +22,7 @@ function rewriteToTrackedDownload(url: string): string {
 
 const server = new McpServer({
   name: "pure-admin-icons",
-  version: "1.0.0",
+  version: "1.1.0",
 });
 
 // --- Tools ---
@@ -65,6 +65,7 @@ or whenever you're not sure which tool or parameters to use.`,
             "  search_icons      — Find icons by name. Supports filters: set, style, size, limit.",
             "  get_icon_detail   — Full metadata for one icon by ID (sizes, identifiers, color method).",
             "  get_icon_svg      — Fetch raw SVG markup from a URL.",
+            "  get_icons_zip     — Bundle many icons into one ZIP (raw SVG, or rasterized PNG at given sizes).",
             "  list_icon_sets    — List all available sets with their styles, sizes, and counts.",
             "",
             "WORKFLOW:",
@@ -307,6 +308,102 @@ For the full search → detail → svg workflow, call get_usage_guide first.`,
           {
             type: "text",
             text: `Error fetching SVG: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  "get_icons_zip",
+  `Bundle multiple icons into a single downloadable ZIP archive.
+
+Give a list of icons as {set, name, style} triples (use search_icons /
+get_icon_detail to find them). Choose a format:
+- "svg" (default): the raw source SVGs.
+- "png": rasterized PNGs — pass "sizes" (pixels) to control the output sizes.
+
+Returns the ZIP as a base64 resource (mimeType application/zip). Entries are
+namespaced set/style/name[-size], plus a manifest.json listing any icons that
+could not be resolved. Per-request limits apply (a huge icons × sizes batch is
+rejected), so keep batches reasonable.`,
+  {
+    icons: z
+      .array(
+        z.object({
+          set: z.string().describe("Icon set code, e.g. lucide, fluentui, tabler"),
+          name: z.string().describe("Icon name as shown in search results"),
+          style: z.string().describe("Style code, e.g. outline, filled, regular"),
+        })
+      )
+      .min(1)
+      .describe("Icons to bundle, as {set, name, style} triples"),
+    format: z
+      .enum(["svg", "png"])
+      .optional()
+      .default("svg")
+      .describe("svg = raw source SVGs; png = rasterized (uses sizes)"),
+    sizes: z
+      .array(z.number().int().positive())
+      .optional()
+      .describe("PNG output sizes in pixels (default [24]); ignored for svg"),
+  },
+  async ({ icons, format, sizes }) => {
+    try {
+      const fmt = format ?? "svg";
+      const endpoint = fmt === "png" ? "/api/icons/png-zip" : "/api/icons/svg-zip";
+      const body: Record<string, unknown> =
+        fmt === "png" ? { icons, sizes: sizes && sizes.length ? sizes : [24] } : { icons };
+
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        let detail = "";
+        try {
+          detail = JSON.stringify(await res.json());
+        } catch {
+          detail = await res.text().catch(() => "");
+        }
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error creating ZIP: HTTP ${res.status}${detail ? ` — ${detail}` : ""}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const buf = Buffer.from(await res.arrayBuffer());
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Bundled ${icons.length} requested ${fmt.toUpperCase()} icon(s) into a ZIP (${buf.length} bytes). Entries are namespaced set/style/name${fmt === "png" ? "-size" : ""}; a manifest.json inside lists any icons that couldn't be resolved.`,
+          },
+          {
+            type: "resource",
+            resource: {
+              uri: `icons://export/pure-admin-icons-${fmt}s.zip`,
+              mimeType: "application/zip",
+              blob: buf.toString("base64"),
+            },
+          },
+        ],
+      };
+    } catch (err) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error creating ZIP: ${err instanceof Error ? err.message : String(err)}`,
           },
         ],
         isError: true,
