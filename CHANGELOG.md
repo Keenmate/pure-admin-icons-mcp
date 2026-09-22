@@ -12,12 +12,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
-## [1.2.0] - 2026-09-22
+## [1.2.0] - 2026-09-22 [PUBLISHED]
 
 ### Added
 - **Session grouping via `x-session-id`** — the server mints one stable session id per process (at startup) and sends it as an `x-session-id` header on every request to icons.pureadmin.io (searches, downloads, ZIP exports, docs). This groups all of an MCP client's activity into a single audit session on the server instead of it falling back to per-request `ip:<addr>` synthesis, so usage stats attribute MCP traffic coherently. Implemented as a small `apiFetch` wrapper around every `fetch`; no new tools or config.
 
-## [1.1.0] - 2026-09-21
+## [1.1.0] - 2026-09-21 [PUBLISHED]
 
 ### Added
 - **`get_icons_zip` tool** — bundle many icons into a single ZIP in one call. Takes a list of `{set, name, style}` triples and a `format` (`svg` for raw source SVGs, or `png` for rasterized PNGs with a `sizes` list). Calls the new `POST /api/icons/svg-zip` / `png-zip` endpoints and returns the archive as a base64 `application/zip` resource. Entries are namespaced `set/style/name[-size]`; a `manifest.json` inside lists any icons that couldn't be resolved. Server-side per-request limits apply. Registered in the `get_usage_guide` tool list.
