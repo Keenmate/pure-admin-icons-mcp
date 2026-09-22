@@ -2,9 +2,23 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 const API_BASE = process.env.ICONS_API || "https://icons.pureadmin.io";
+
+// One stable session id per MCP server process, sent as x-session-id on every
+// request so icons.pureadmin.io groups this client's searches/downloads into a
+// single audit session (instead of falling back to per-request ip:<addr>).
+const SESSION_ID = randomUUID();
+
+// fetch wrapper that stamps the session header (and preserves any caller headers).
+function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(input, {
+    ...init,
+    headers: { ...(init.headers ?? {}), "x-session-id": SESSION_ID },
+  });
+}
 
 // Rewrites the public /icons/{set}/{style}/{filename} path used in search
 // result URLs to /api/download/{set}/{style}/{filename}, which serves the
@@ -22,7 +36,7 @@ function rewriteToTrackedDownload(url: string): string {
 
 const server = new McpServer({
   name: "pure-admin-icons",
-  version: "1.1.0",
+  version: "1.2.0",
 });
 
 // --- Tools ---
@@ -40,7 +54,7 @@ or whenever you're not sure which tool or parameters to use.`,
   {},
   async () => {
     try {
-      const res = await fetch(`${API_BASE}/llms.txt`);
+      const res = await apiFetch(`${API_BASE}/llms.txt`);
       if (res.ok) {
         const text = await res.text();
         return { content: [{ type: "text", text }] };
@@ -144,7 +158,7 @@ Tips:
       if (style) params.append("style", style);
       if (size) params.append("size", size);
 
-      const res = await fetch(`${API_BASE}/api/icons/search?${params}`);
+      const res = await apiFetch(`${API_BASE}/api/icons/search?${params}`);
       if (!res.ok)
         return {
           content: [
@@ -194,7 +208,7 @@ If unsure how to use this output, call get_usage_guide for the full workflow.`,
   },
   async ({ id }) => {
     try {
-      const res = await fetch(`${API_BASE}/api/icons/${id}`);
+      const res = await apiFetch(`${API_BASE}/api/icons/${id}`);
       if (!res.ok) {
         if (res.status === 404)
           return {
@@ -288,7 +302,7 @@ For the full search → detail → svg workflow, call get_usage_guide first.`,
       // so we route through /api/download/... which records an icon_metric row.
       const trackedUrl = rewriteToTrackedDownload(url);
       const fullUrl = trackedUrl.startsWith("http") ? trackedUrl : `${API_BASE}${trackedUrl}`;
-      const res = await fetch(fullUrl);
+      const res = await apiFetch(fullUrl);
       if (!res.ok)
         return {
           content: [
@@ -357,7 +371,7 @@ rejected), so keep batches reasonable.`,
       const body: Record<string, unknown> =
         fmt === "png" ? { icons, sizes: sizes && sizes.length ? sizes : [24] } : { icons };
 
-      const res = await fetch(`${API_BASE}${endpoint}`, {
+      const res = await apiFetch(`${API_BASE}${endpoint}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
@@ -422,7 +436,7 @@ For a guided introduction to all tools, call get_usage_guide instead.`,
   {},
   async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/icon-sets`);
+      const res = await apiFetch(`${API_BASE}/api/icon-sets`);
       if (!res.ok)
         return {
           content: [
@@ -470,7 +484,7 @@ For a guided introduction to all tools, call get_usage_guide instead.`,
 
 server.resource("api-docs", "icons://docs", async (uri) => {
   try {
-    const res = await fetch(`${API_BASE}/llms.txt`);
+    const res = await apiFetch(`${API_BASE}/llms.txt`);
     const text = await res.text();
     return {
       contents: [{ uri: uri.href, mimeType: "text/plain", text }],

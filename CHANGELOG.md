@@ -12,6 +12,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+## [1.2.0] - 2026-09-22
+
+### Added
+- **Session grouping via `x-session-id`** — the server mints one stable session id per process (at startup) and sends it as an `x-session-id` header on every request to icons.pureadmin.io (searches, downloads, ZIP exports, docs). This groups all of an MCP client's activity into a single audit session on the server instead of it falling back to per-request `ip:<addr>` synthesis, so usage stats attribute MCP traffic coherently. Implemented as a small `apiFetch` wrapper around every `fetch`; no new tools or config.
+
 ## [1.1.0] - 2026-09-21
 
 ### Added
