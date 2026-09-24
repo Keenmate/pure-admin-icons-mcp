@@ -7,17 +7,113 @@ import { z } from "zod";
 
 const API_BASE = process.env.ICONS_API || "https://icons.pureadmin.io";
 
+// Keep in sync with package.json "version" and the McpServer version below.
+const VERSION = "1.3.0";
+
 // One stable session id per MCP server process, sent as x-session-id on every
 // request so icons.pureadmin.io groups this client's searches/downloads into a
 // single audit session (instead of falling back to per-request ip:<addr>).
 const SESSION_ID = randomUUID();
 
-// fetch wrapper that stamps the session header (and preserves any caller headers).
-function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(input, {
+// --- Update check -----------------------------------------------------------
+//
+// The API advertises the accepted MCP version two ways: X-MCP-* headers on
+// every response (read in apiFetch below, so even a renamed endpoint's 404
+// still delivers the signal) and richer JSON at /api/mcp/version (checked once
+// at startup). Both are best-effort — a failed/absent check never blocks work.
+//
+// Two thresholds: below `minSupported` = must upgrade (tools may fail); between
+// that and `latest` = upgrade recommended. The resulting notice is logged to
+// stderr (once) and prepended as a banner to get_usage_guide.
+
+const UPGRADE_HINT = "Update: npm i -g @keenmate/pure-admin-icons-mcp@latest";
+
+const serverInfo: { latest?: string; minSupported?: string; message?: string } =
+  {};
+let updateNotice: string | null = null;
+let warnedNotice: string | null = null;
+
+// Naive semver compare on major.minor.patch (pre-release tags ignored).
+function cmpSemver(a: string, b: string): number {
+  const pa = a.split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = b.split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) return d < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
+// Merge freshly-learned version info and recompute the notice; log once to
+// stderr when it first appears (or changes).
+function updateVersionInfo(next: {
+  latest?: string | null;
+  minSupported?: string | null;
+  message?: string | null;
+}): void {
+  if (next.latest) serverInfo.latest = next.latest;
+  if (next.minSupported) serverInfo.minSupported = next.minSupported;
+  if (next.message) serverInfo.message = next.message;
+
+  const { latest, minSupported, message } = serverInfo;
+  let notice: string | null = null;
+
+  if (minSupported && cmpSemver(VERSION, minSupported) < 0) {
+    notice = `pure-admin-icons MCP ${VERSION} is no longer supported (minimum ${minSupported}); some tools may fail. ${UPGRADE_HINT}.`;
+  } else if (latest && cmpSemver(VERSION, latest) < 0) {
+    notice = `A newer pure-admin-icons MCP is available (${latest}; you have ${VERSION}). ${UPGRADE_HINT}.`;
+  }
+  if (notice && message) notice += ` Note: ${message}`;
+
+  updateNotice = notice;
+
+  if (notice && notice !== warnedNotice) {
+    console.error(`[pure-admin-icons] ${notice}`);
+    warnedNotice = notice;
+  }
+}
+
+// fetch wrapper that stamps session + version headers (preserving any caller
+// headers) and folds the API's X-MCP-* response headers into the update check.
+async function apiFetch(
+  input: string,
+  init: RequestInit = {}
+): Promise<Response> {
+  const res = await fetch(input, {
     ...init,
-    headers: { ...(init.headers ?? {}), "x-session-id": SESSION_ID },
+    headers: {
+      ...(init.headers ?? {}),
+      "x-session-id": SESSION_ID,
+      "x-mcp-version": VERSION,
+    },
   });
+  const latest = res.headers.get("x-mcp-latest");
+  const minSupported = res.headers.get("x-mcp-min-supported");
+  if (latest || minSupported) updateVersionInfo({ latest, minSupported });
+  return res;
+}
+
+// One-shot startup check against the stable version endpoint — richer payload
+// (message/changelog) than the headers. Best-effort with a short timeout.
+async function checkForUpdate(): Promise<void> {
+  try {
+    const res = await apiFetch(`${API_BASE}/api/mcp/version`, {
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as {
+      latest?: string;
+      min_supported?: string;
+      message?: string;
+    };
+    updateVersionInfo({
+      latest: data.latest,
+      minSupported: data.min_supported,
+      message: data.message,
+    });
+  } catch {
+    // best-effort: never block or fail on the update check
+  }
 }
 
 // Rewrites the public /icons/{set}/{style}/{filename} path used in search
@@ -36,7 +132,7 @@ function rewriteToTrackedDownload(url: string): string {
 
 const server = new McpServer({
   name: "pure-admin-icons",
-  version: "1.2.0",
+  version: VERSION,
 });
 
 // --- Tools ---
@@ -53,11 +149,13 @@ Call this tool at the start of a conversation when the user asks about icons,
 or whenever you're not sure which tool or parameters to use.`,
   {},
   async () => {
+    // Surface any pending upgrade notice to the AI so it can relay it.
+    const banner = updateNotice ? `⚠ ${updateNotice}\n\n` : "";
     try {
       const res = await apiFetch(`${API_BASE}/llms.txt`);
       if (res.ok) {
         const text = await res.text();
-        return { content: [{ type: "text", text }] };
+        return { content: [{ type: "text", text: banner + text }] };
       }
     } catch {
       // fall through to fallback
@@ -66,7 +164,7 @@ or whenever you're not sure which tool or parameters to use.`,
       content: [
         {
           type: "text",
-          text: [
+          text: banner + [
             "icons.pureadmin.io — Icon search across many open-source icon libraries",
             "",
             "ICON SETS:",
@@ -519,7 +617,9 @@ server.resource("api-docs", "icons://docs", async (uri) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Pure Admin Icons MCP server running");
+  console.error(`Pure Admin Icons MCP server ${VERSION} running`);
+  // Fire-and-forget: learn the accepted version without delaying startup.
+  void checkForUpdate();
 }
 
 main().catch(console.error);

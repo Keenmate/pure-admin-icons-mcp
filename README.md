@@ -4,13 +4,13 @@ MCP server for searching open-source SVG icons from [icons.pureadmin.io](https:/
 
 Search across 13 icon sets — **FluentUI**, **Material Symbols**, **Phosphor**, **Tabler**, **Lucide**, **Solar**, **Font Awesome**, **Heroicons**, **Remix**, **Carbon**, **Bootstrap**, **Simple Icons**, and **MingCute** — with a single tool. Get platform identifiers for iOS, Android, React, Vue, and Svelte. Call `list_icon_sets` for the live list with counts.
 
+## What's New in v1.3.0
+
+- **Update notifications — know when to upgrade** — The server now checks icons.pureadmin.io for the latest and minimum-supported MCP versions (via response headers plus a startup probe) and, when your installed copy is behind, surfaces a notice on stderr and at the top of `get_usage_guide` so your AI client can prompt you to update. Entirely automatic and best-effort — it never delays startup or blocks a tool call.
+
 ## What's New in v1.2.0
 
 - **Session grouping — `x-session-id` on every request** — The server now mints one stable session id per process and stamps it on all requests to icons.pureadmin.io, so your searches, downloads, and ZIP exports are attributed to a single session in the site's usage stats instead of being scattered per request. Fully automatic — no config or tool changes.
-
-## What's New in v1.1.0
-
-- **`get_icons_zip` — bundle many icons into one ZIP** — A new tool exports a whole set of icons in one call: pass a list of `{set, name, style}` triples and a `format` (`svg` for raw source SVGs, or `png` for rasterized PNGs at given `sizes`). Returns a base64 `application/zip` with a `manifest.json` listing any icons that couldn't be resolved.
 
 ## Tools
 

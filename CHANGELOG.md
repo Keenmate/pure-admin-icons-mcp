@@ -12,6 +12,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+## [1.3.0] - 2026-09-24 [PUBLISHED]
+
+### Added
+- **MCP version signalling & update check** — The server now learns the currently-accepted MCP version from icons.pureadmin.io two ways: `X-MCP-*` headers folded in on every API response (via the `apiFetch` wrapper), and a one-shot startup GET to `/api/mcp/version` (richer payload with an optional message). It stamps an `x-mcp-version` header on every request. When the running version is below the server's advertised `latest` (upgrade recommended) or `minSupported` (upgrade required — tools may fail), it logs a one-time notice to stderr and prepends a ⚠ banner to `get_usage_guide` output so the AI can relay it. Fully best-effort — a failed or absent check never delays startup, blocks, or fails a tool call.
+
 ## [1.2.0] - 2026-09-22 [PUBLISHED]
 
 ### Added
